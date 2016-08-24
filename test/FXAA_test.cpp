@@ -7,6 +7,7 @@
 #include <osg/Group>
 #include <osg/ShapeDrawable>
 #include <osgDB/ReadFile>
+#include <osgGA/TrackballManipulator>
 
 #include <opencv2/contrib/contrib.hpp>
 #include <opencv2/core/core.hpp>
@@ -17,6 +18,40 @@
 #include <boost/test/unit_test.hpp>
 
 using namespace vizkit3d_normal_depth_map;
+
+osg::ref_ptr<osg::Group> createSquare(float textureCoordMax = 1.0f) {
+    // set up the Geometry.
+    osg::Geometry* geom = new osg::Geometry;
+
+    osg::Vec3Array* coords = new osg::Vec3Array(4);
+    (*coords)[0].set(-1.0f, 1.0f, 1.0f);
+    (*coords)[1].set(-1.0f, 1.0f, -1.0f);
+    (*coords)[2].set(1.0f, 1.0f, -1.0f);
+    (*coords)[3].set(1.0f, 1.0f, 1.0f);
+    geom->setVertexArray(coords);
+
+    osg::Vec3Array* norms = new osg::Vec3Array(1);
+    (*norms)[0].set(0.0f, -1.0f, 0.0f);
+    geom->setNormalArray(norms, osg::Array::BIND_OVERALL);
+
+    osg::Vec2Array* tcoords = new osg::Vec2Array(4);
+    (*tcoords)[0].set(0.0f, 0.0f);
+    (*tcoords)[1].set(0.0f, textureCoordMax);
+    (*tcoords)[2].set(textureCoordMax, textureCoordMax);
+    (*tcoords)[3].set(textureCoordMax, 0.0f);
+    geom->setTexCoordArray(0, tcoords);
+
+    geom->addPrimitiveSet(new osg::DrawArrays(osg::PrimitiveSet::QUADS, 0, 4));
+
+    osg::Geode* geode = new osg::Geode;
+    geode->addDrawable(geom);
+
+    osg::ref_ptr<osg::Group> root = new osg::Group;
+    root->addChild(geode);
+
+    return root;
+}
+
 
 void makeSimpleScene(osg::ref_ptr<osg::Group> root) {
 
@@ -65,41 +100,62 @@ void viewPointsFromScene(std::vector<osg::Vec3d> *eyes,
   ups->push_back(osg::Vec3d(0, 0, 1));
 }
 
-BOOST_AUTO_TEST_CASE(applyShaderNormalDepthMap_TestCase) {
+// BOOST_AUTO_TEST_CASE(applyShaderNormalDepthMap_TestCase) {
+//
+//   std::vector<osg::Vec3d> eyes, centers, ups;
+//
+//   float maxRange = 50;
+//   float maxAngleX = M_PI * 1.0 / 6; // 30 degrees
+//   float maxAngleY = M_PI * 1.0 / 6; // 30 degrees
+//
+//   uint height = 500;
+//   NormalDepthMap normalDepthMap(maxRange, maxAngleX * 0.5, maxAngleY * 0.5);
+//   ImageViewerCaptureTool capture(maxAngleY, maxAngleX, height);
+//   ImageViewerCaptureTool fxaa_capture(height, height);
+//   FXAA fxaa;
+//   capture.setBackgroundColor(osg::Vec4d(0, 0, 0, 0));
+//
+//   osg::ref_ptr<osg::Group> root = new osg::Group();
+//   viewPointsFromScene(&eyes, &centers, &ups);
+//   makeSimpleScene(root);
+//   normalDepthMap.addNodeChild(root);
+//
+//   for (uint i = 0; i < eyes.size(); ++i) {
+//     capture.setCameraPosition(eyes[i], centers[i], ups[i]);
+//
+//     normalDepthMap.setDrawNormal(true);
+//     normalDepthMap.setDrawDepth(true);
+//     osg::ref_ptr<osg::Image> osgImage =
+//       capture.grabImage(normalDepthMap.getNormalDepthMapNode());
+//
+//
+//     fxaa.addImageToFxaa(osgImage, osgImage->t(), osgImage->s());
+//     osgImage = fxaa_capture.grabImage(fxaa.getFxaaShaderNode());
+//
+//
+//     cv::Mat3f cvImage(osgImage->t(), osgImage->s());
+//     cvImage.data = osgImage->data();
+//     cvImage = cvImage.clone();
+//     cv::cvtColor(cvImage, cvImage, cv::COLOR_RGB2BGR, CV_32FC3);
+//     // cv::flip(cvImage, cvImage, 0);
+//     cv::imshow("FXAA OUT",cvImage);
+//     cv::waitKey();
+//   }
+//
+// }
 
-  std::vector<osg::Vec3d> eyes, centers, ups;
+BOOST_AUTO_TEST_CASE(TempTest){
 
-  float maxRange = 50;
-  float maxAngleX = M_PI * 1.0 / 6; // 30 degrees
-  float maxAngleY = M_PI * 1.0 / 6; // 30 degrees
 
-  uint height = 500;
-  NormalDepthMap normalDepthMap(maxRange, maxAngleX * 0.5, maxAngleY * 0.5);
-  ImageViewerCaptureTool capture(maxAngleY, maxAngleX, height);
+  std::string image_path = "/home/trocoli/Pictures/baiana_system_face.jpg";
+  osg::ref_ptr<osg::Image> osg_image = osgDB::readImageFile(image_path);
+
   FXAA fxaa;
-  capture.setBackgroundColor(osg::Vec4d(0, 0, 0, 0));
+  fxaa.addImageToFxaa(osg_image, 1920, 1080);
 
-  osg::ref_ptr<osg::Group> root = new osg::Group();
-  viewPointsFromScene(&eyes, &centers, &ups);
-  makeSimpleScene(root);
-  normalDepthMap.addNodeChild(root);
-
-  for (uint i = 0; i < eyes.size(); ++i) {
-    capture.setCameraPosition(eyes[i], centers[i], ups[i]);
-
-    normalDepthMap.setDrawNormal(true);
-    normalDepthMap.setDrawDepth(true);
-    osg::ref_ptr<osg::Image> osgImage =
-      capture.grabImage(normalDepthMap.getNormalDepthMapNode());
-    fxaa.addImageToFxaa(osgImage);
-
-    cv::Mat3f cvImage(osgImage->t(), osgImage->s());
-    cvImage.data = osgImage->data();
-    cvImage = cvImage.clone();
-    cv::cvtColor(cvImage, cvImage, cv::COLOR_RGB2BGR, CV_32FC3);
-    cv::flip(cvImage, cvImage, 0);
-    cv::imshow("FXAA OUT",cvImage);
-    cv::waitKey();
-  }
-
+  osgViewer::Viewer bumpViewer;
+  bumpViewer.setSceneData(createSquare());
+  bumpViewer.setSceneData(fxaa.getFxaaShaderNode());
+  bumpViewer.setCameraManipulator(new osgGA::TrackballManipulator());
+  bumpViewer.run();
 }

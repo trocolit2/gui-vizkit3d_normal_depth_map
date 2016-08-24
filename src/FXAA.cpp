@@ -8,12 +8,45 @@
 #include <osg/Uniform>
 #include <osg/Texture>
 #include <osg/Texture2D>
+#include <osg/ShapeDrawable>
+
 #include <osgDB/FileUtils>
 
 namespace vizkit3d_normal_depth_map {
 
-#define PATH_SHADER_FXAA_FRAG "vizkit3d_normal_depth_map/shaders/fxaa.frag"
 #define PATH_SHADER_FXAA_VERT "vizkit3d_normal_depth_map/shaders/fxaa.vert"
+#define PATH_SHADER_FXAA_FRAG "vizkit3d_normal_depth_map/shaders/fxaa.frag"
+
+#define IMAGE_TEXTTURE_UNIT 0
+
+
+osg::Geometry *createFlatGeometry(float textureCoordMax = 1.0f) {
+    // set up the Geometry.
+    osg::Geometry* geom = new osg::Geometry;
+
+    osg::Vec3Array* coords = new osg::Vec3Array(4);
+    (*coords)[0].set(-1.0f, 0.0f, 1.0f);
+    (*coords)[1].set(-1.0f, 0.0f, -1.0f);
+    (*coords)[2].set(1.0f, 0.0f, -1.0f);
+    (*coords)[3].set(1.0f, 0.0f, 1.0f);
+    geom->setVertexArray(coords);
+
+    osg::Vec3Array* norms = new osg::Vec3Array(1);
+    (*norms)[0].set(0.0f, -1.0f, 0.0f);
+    geom->setNormalArray(norms, osg::Array::BIND_OVERALL);
+
+    osg::Vec2Array* tcoords = new osg::Vec2Array(4);
+    (*tcoords)[0].set(0.0f, 0.0f);
+    (*tcoords)[1].set(0.0f, textureCoordMax);
+    (*tcoords)[2].set(textureCoordMax, textureCoordMax);
+    (*tcoords)[3].set(textureCoordMax, 0.0f);
+    geom->setTexCoordArray(0, tcoords);
+
+    geom->addPrimitiveSet(new osg::DrawArrays(osg::PrimitiveSet::QUADS, 0, 4));
+
+    return geom;
+}
+
 
 FXAA::FXAA(){
   _fxaaShaderNode = createFXAAShaderNode();
@@ -50,8 +83,27 @@ void FXAA::setFxaaReduceMin( float fxaa_reduce_min){
     getUniform("fxaa_reduce_min")->set(fxaa_reduce_min);
 }
 
-void FXAA::addImageToFxaa( osg::ref_ptr<osg::Image> image){
-  insertTextureInStateSet(image, _fxaaShaderNode->getOrCreateStateSet());
+void FXAA::setFinalImageResolution(float width, float height){
+  _fxaaShaderNode->getOrCreateStateSet()->
+    getUniform("image_resolution")->set(osg::Vec2(width, height));
+}
+
+void FXAA::addImageToFxaa( osg::ref_ptr<osg::Image> image, float final_width,
+                           float final_height){
+
+  osg::ref_ptr<osg::Geode> geode_tex = insertTextureInGoede(image);
+
+  if( _fxaaShaderNode->getNumChildren())
+    _fxaaShaderNode->setChild(0,geode_tex);
+  else
+    _fxaaShaderNode->addChild(geode_tex);
+
+    std::cout<<"number of children "<< _fxaaShaderNode->getNumChildren()
+    <<std::endl;
+
+    setFinalImageResolution(final_width,final_height);
+
+    std::cout<<"Cheguei aqui"<<std::endl;
 };
 
 
@@ -60,43 +112,47 @@ osg::ref_ptr<osg::Group> FXAA::createFXAAShaderNode(  float fxaa_span_max,
                                                       float fxaa_reduce_mul,
                                                       float fxaa_reduce_min) {
 
-  osg::ref_ptr<osg::Group> localRoot = new osg::Group();
+  osg::ref_ptr<osg::Group> local_root = new osg::Group();
   osg::ref_ptr<osg::Program> program(new osg::Program());
 
-  // osg::ref_ptr<osg::Shader> shaderVertex =
-  //   osg::Shader::readShaderFile(osg::Shader::VERTEX,
-  //                               osgDB::findDataFile(SHADER_PATH_VERT));
+  osg::ref_ptr<osg::Shader> shader_vertex =
+    osg::Shader::readShaderFile(osg::Shader::VERTEX,
+                                osgDB::findDataFile(PATH_SHADER_FXAA_VERT));
 
-  osg::ref_ptr<osg::Shader> shaderFragment =
+  osg::ref_ptr<osg::Shader> shader_fragment =
     osg::Shader::readShaderFile(osg::Shader::FRAGMENT,
                                 osgDB::findDataFile(PATH_SHADER_FXAA_FRAG));
 
-  // program->addShader(shaderVertex);
-  program->addShader(shaderFragment);
+  program->addShader(shader_vertex);
+  program->addShader(shader_fragment);
 
-  osg::ref_ptr<osg::StateSet> ss = localRoot->getOrCreateStateSet();
+  osg::ref_ptr<osg::StateSet> ss = local_root->getOrCreateStateSet();
+  ss->addUniform( new osg::Uniform("original_image", IMAGE_TEXTTURE_UNIT));
+  ss->addUniform( new osg::Uniform ("image_resolution", osg::Vec2(1,1)));
   ss->setAttribute(program);
 
-  osg::ref_ptr<osg::Uniform> fxaa_span_max_uniform(
-                          new osg::Uniform("fxaa_span_max", fxaa_span_max));
-  ss->addUniform(fxaa_span_max_uniform);
 
-  osg::ref_ptr<osg::Uniform> fxaa_reduce_mul_uniform(
-                          new osg::Uniform("fxaa_reduce_mul", fxaa_reduce_mul));
-  ss->addUniform(fxaa_reduce_mul_uniform);
 
-  osg::ref_ptr<osg::Uniform> fxaa_reduce_min_uniform(
-                          new osg::Uniform("fxaa_reduce_min", fxaa_reduce_min));
-  ss->addUniform(fxaa_reduce_min_uniform);
+  // osg::ref_ptr<osg::Uniform> fxaa_span_max_uniform(
+  //                         new osg::Uniform("fxaa_span_max", fxaa_span_max));
+  // ss->addUniform(fxaa_span_max_uniform);
+  //
+  // osg::ref_ptr<osg::Uniform> fxaa_reduce_mul_uniform(
+  //                         new osg::Uniform("fxaa_reduce_mul", fxaa_reduce_mul));
+  // ss->addUniform(fxaa_reduce_mul_uniform);
+  //
+  // osg::ref_ptr<osg::Uniform> fxaa_reduce_min_uniform(
+  //                         new osg::Uniform("fxaa_reduce_min", fxaa_reduce_min));
+  // ss->addUniform(fxaa_reduce_min_uniform);
 
-  return localRoot;
+
+  return local_root;
 }
 
 
 
 
-void FXAA::insertTextureInStateSet( osg::ref_ptr<osg::Image> image,
-                                    osg::StateSet *state_set ){
+osg::ref_ptr<osg::Geode> FXAA::insertTextureInGoede( osg::Image *image ){
 
   osg::ref_ptr<osg::Texture2D> image_tex = new osg::Texture2D();
 
@@ -110,10 +166,33 @@ void FXAA::insertTextureInStateSet( osg::ref_ptr<osg::Image> image,
   image_tex->setResizeNonPowerOfTwoHint(false);
   image_tex->setMaxAnisotropy(8.0f);
 
-  int image_tex_unit = 0;
-  state_set->setTextureAttributeAndModes(image_tex_unit, image_tex, osg::StateAttribute::ON);
-  state_set->addUniform(new osg::Uniform("original_image", image_tex_unit));
+  osg::ref_ptr<osg::StateSet> state_tex = new osg::StateSet();
+  state_tex->setTextureAttributeAndModes( IMAGE_TEXTTURE_UNIT, image_tex,
+                                          osg::StateAttribute::ON);
+  std::cout<<" ENTREI AQUI 1"<<std::endl;
 
+  osg::ref_ptr<osg::Geode> geode_tex = new osg::Geode;
+  geode_tex->setStateSet(state_tex);
+
+
+  std::cout<<" ENTREI AQUI 2"<<std::endl;
+
+  osg::Geometry *text_geometry = createFlatGeometry();
+
+  // for (unsigned int i = 0; i < tex_coord->getNumElements(); ++i)
+  //   (*tex_coord)[i].set((*tex_coord)[i].x() * scale_x,
+  //                       (*tex_coord)[i].y() * scale_y);
+  //
+  // text_geometry->setTexCoordArray(image_tex_unit, tex_coord);
+
+  geode_tex->addDrawable(text_geometry);
+
+  // free(text_geometry);
+  // free(tex_coord);
+
+
+  std::cout<<" ENTREI AQUI"<<std::endl;
+  return geode_tex;
 }
 
 } // namespace vizkit3d_normal_depth_map

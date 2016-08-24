@@ -1,4 +1,5 @@
 #include <osg/Group>
+#include <osg/Geode>
 #include <osg/Image>
 #include <osg/ref_ptr>
 
@@ -23,21 +24,25 @@ public:
   float getFxaaReduceMin();
   void setFxaaReduceMin( float fxaa_reduce_min);
 
-  void addImageToFxaa( osg::ref_ptr<osg::Image> image);
+  void setFinalImageResolution(float width, float height);
+
+  void addImageToFxaa( osg::ref_ptr<osg::Image> image, float final_width,
+                       float final_height);
 
   const osg::ref_ptr<osg::Group> getFxaaShaderNode() const {
     return _fxaaShaderNode;
   }
 
- 
+
 private:
   osg::ref_ptr<osg::Group> createFXAAShaderNode(
                                           float fxaa_span_max = 8.0,
                                           float fxaa_reduce_mul = 1.0/8.0,
                                           float fxaa_reduce_min = 1.0/128.0);
 
-  void insertTextureInStateSet( osg::ref_ptr<osg::Image> image,
-                                osg::StateSet *state_set );
+  osg::ref_ptr<osg::Geode> insertTextureInGoede( osg::Image *image );
+
+
 
   osg::ref_ptr<osg::Group> _fxaaShaderNode;
 };
