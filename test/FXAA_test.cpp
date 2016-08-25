@@ -100,62 +100,74 @@ void viewPointsFromScene(std::vector<osg::Vec3d> *eyes,
   ups->push_back(osg::Vec3d(0, 0, 1));
 }
 
-// BOOST_AUTO_TEST_CASE(applyShaderNormalDepthMap_TestCase) {
-//
-//   std::vector<osg::Vec3d> eyes, centers, ups;
-//
-//   float maxRange = 50;
-//   float maxAngleX = M_PI * 1.0 / 6; // 30 degrees
-//   float maxAngleY = M_PI * 1.0 / 6; // 30 degrees
-//
-//   uint height = 500;
-//   NormalDepthMap normalDepthMap(maxRange, maxAngleX * 0.5, maxAngleY * 0.5);
-//   ImageViewerCaptureTool capture(maxAngleY, maxAngleX, height);
-//   ImageViewerCaptureTool fxaa_capture(height, height);
-//   FXAA fxaa;
-//   capture.setBackgroundColor(osg::Vec4d(0, 0, 0, 0));
-//
-//   osg::ref_ptr<osg::Group> root = new osg::Group();
-//   viewPointsFromScene(&eyes, &centers, &ups);
-//   makeSimpleScene(root);
-//   normalDepthMap.addNodeChild(root);
-//
-//   for (uint i = 0; i < eyes.size(); ++i) {
-//     capture.setCameraPosition(eyes[i], centers[i], ups[i]);
-//
-//     normalDepthMap.setDrawNormal(true);
-//     normalDepthMap.setDrawDepth(true);
-//     osg::ref_ptr<osg::Image> osgImage =
-//       capture.grabImage(normalDepthMap.getNormalDepthMapNode());
-//
-//
-//     fxaa.addImageToFxaa(osgImage, osgImage->t(), osgImage->s());
-//     osgImage = fxaa_capture.grabImage(fxaa.getFxaaShaderNode());
-//
-//
-//     cv::Mat3f cvImage(osgImage->t(), osgImage->s());
-//     cvImage.data = osgImage->data();
-//     cvImage = cvImage.clone();
-//     cv::cvtColor(cvImage, cvImage, cv::COLOR_RGB2BGR, CV_32FC3);
-//     // cv::flip(cvImage, cvImage, 0);
-//     cv::imshow("FXAA OUT",cvImage);
-//     cv::waitKey();
-//   }
-//
-// }
-
-BOOST_AUTO_TEST_CASE(TempTest){
 
 
-  std::string image_path = "/home/trocoli/Pictures/baiana_system_face.jpg";
-  osg::ref_ptr<osg::Image> osg_image = osgDB::readImageFile(image_path);
+// Main test
+// Good example to follow
+BOOST_AUTO_TEST_CASE(applyShaderNormalDepthMap_TestCase) {
 
+  std::vector<osg::Vec3d> eyes, centers, ups;
+
+  float maxRange = 50;
+  float maxAngleX = M_PI * 1.0 / 6; // 30 degrees
+  float maxAngleY = M_PI * 1.0 / 6; // 30 degrees
+
+  uint height = 1900/2;
+  NormalDepthMap normalDepthMap(maxRange, maxAngleX * 0.5, maxAngleY * 0.5);
+  ImageViewerCaptureTool capture(maxAngleY, maxAngleX, height);
+  ImageViewerCaptureTool fxaa_capture(maxAngleY, maxAngleX, height);
+
+  capture.setBackgroundColor(osg::Vec4d(0, 0, 0, 0));
+
+  osg::ref_ptr<osg::Group> root = new osg::Group();
+  viewPointsFromScene(&eyes, &centers, &ups);
+  makeSimpleScene(root);
+  normalDepthMap.addNodeChild(root);
   FXAA fxaa;
-  fxaa.addImageToFxaa(osg_image, 1920, 1080);
 
-  osgViewer::Viewer bumpViewer;
-  bumpViewer.setSceneData(createSquare());
-  bumpViewer.setSceneData(fxaa.getFxaaShaderNode());
-  bumpViewer.setCameraManipulator(new osgGA::TrackballManipulator());
-  bumpViewer.run();
+
+  for (uint i = 0; i < eyes.size(); ++i) {
+    capture.setCameraPosition(eyes[i], centers[i], ups[i]);
+
+    normalDepthMap.setDrawNormal(true);
+    normalDepthMap.setDrawDepth(true);
+
+    osg::ref_ptr<osg::Image> osgImage =
+      capture.grabImage(normalDepthMap.getNormalDepthMapNode());
+    cv::Mat3f cv_image(osgImage->t(), osgImage->s());
+    cv_image.data = osgImage->data();
+    cv_image = cv_image.clone();
+    cv::cvtColor(cv_image, cv_image, cv::COLOR_RGB2BGR, CV_32FC3);
+    cv::flip(cv_image, cv_image, 0);
+
+    fxaa.addImageToFxaa(osgImage, osgImage->t(), osgImage->s());
+    osgImage = fxaa_capture.grabImage(fxaa.getFxaaShaderNode());
+
+    cv::Mat3f cv_img_fxaa(osgImage->t(), osgImage->s());
+    cv_img_fxaa.data = osgImage->data();
+    cv_img_fxaa = cv_img_fxaa.clone();
+    cv::cvtColor(cv_img_fxaa, cv_img_fxaa, cv::COLOR_RGB2BGR, CV_32FC3);
+    // cv::flip(cv_image, cv_image, 0);
+
+    cv::imshow("ORIGINAL IMAGE ",cv_image);
+    cv::imshow("FXAA IMAGE",cv_img_fxaa);
+    cv::waitKey();
+  }
+
 }
+
+// BOOST_AUTO_TEST_CASE(TempTest){
+//
+//
+//   std::string image_path = "/home/trocoli/Pictures/baiana_system_face.jpg";
+//   osg::ref_ptr<osg::Image> osg_image = osgDB::readImageFile(image_path);
+//
+//   FXAA fxaa;
+//   fxaa.addImageToFxaa(osg_image, 1920, 1080);
+//
+//   osgViewer::Viewer bumpViewer;
+//   bumpViewer.setSceneData(createSquare());
+//   bumpViewer.setSceneData(fxaa.getFxaaShaderNode());
+//   bumpViewer.setCameraManipulator(new osgGA::TrackballManipulator());
+//   bumpViewer.run();
+// }

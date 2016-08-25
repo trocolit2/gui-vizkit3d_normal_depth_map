@@ -98,14 +98,8 @@ void FXAA::addImageToFxaa( osg::ref_ptr<osg::Image> image, float final_width,
   else
     _fxaaShaderNode->addChild(geode_tex);
 
-    std::cout<<"number of children "<< _fxaaShaderNode->getNumChildren()
-    <<std::endl;
-
     setFinalImageResolution(final_width,final_height);
-
-    std::cout<<"Cheguei aqui"<<std::endl;
 };
-
 
 
 osg::ref_ptr<osg::Group> FXAA::createFXAAShaderNode(  float fxaa_span_max,
@@ -169,29 +163,14 @@ osg::ref_ptr<osg::Geode> FXAA::insertTextureInGoede( osg::Image *image ){
   osg::ref_ptr<osg::StateSet> state_tex = new osg::StateSet();
   state_tex->setTextureAttributeAndModes( IMAGE_TEXTTURE_UNIT, image_tex,
                                           osg::StateAttribute::ON);
-  std::cout<<" ENTREI AQUI 1"<<std::endl;
 
   osg::ref_ptr<osg::Geode> geode_tex = new osg::Geode;
   geode_tex->setStateSet(state_tex);
 
-
-  std::cout<<" ENTREI AQUI 2"<<std::endl;
-
   osg::Geometry *text_geometry = createFlatGeometry();
-
-  // for (unsigned int i = 0; i < tex_coord->getNumElements(); ++i)
-  //   (*tex_coord)[i].set((*tex_coord)[i].x() * scale_x,
-  //                       (*tex_coord)[i].y() * scale_y);
-  //
-  // text_geometry->setTexCoordArray(image_tex_unit, tex_coord);
 
   geode_tex->addDrawable(text_geometry);
 
-  // free(text_geometry);
-  // free(tex_coord);
-
-
-  std::cout<<" ENTREI AQUI"<<std::endl;
   return geode_tex;
 }
 
