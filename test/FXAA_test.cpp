@@ -112,10 +112,9 @@ BOOST_AUTO_TEST_CASE(applyShaderNormalDepthMap_TestCase) {
   float maxAngleX = M_PI * 1.0 / 6; // 30 degrees
   float maxAngleY = M_PI * 1.0 / 6; // 30 degrees
 
-  uint height = 1900/2;
+  uint height = 1300/2;
   NormalDepthMap normalDepthMap(maxRange, maxAngleX * 0.5, maxAngleY * 0.5);
   ImageViewerCaptureTool capture(maxAngleY, maxAngleX, height);
-  ImageViewerCaptureTool fxaa_capture(maxAngleY, maxAngleX, height);
 
   capture.setBackgroundColor(osg::Vec4d(0, 0, 0, 0));
 
@@ -123,8 +122,15 @@ BOOST_AUTO_TEST_CASE(applyShaderNormalDepthMap_TestCase) {
   viewPointsFromScene(&eyes, &centers, &ups);
   makeSimpleScene(root);
   normalDepthMap.addNodeChild(root);
-  FXAA fxaa;
 
+
+  // configure fxaa shader
+  FXAA fxaa;
+  osg::Vec3d fxaa_eye, fxaa_center, fxaa_up;
+  fxaa.getCameraPosition(fxaa_eye, fxaa_center, fxaa_up);
+
+  ImageViewerCaptureTool fxaa_capture(maxAngleY, maxAngleX, height);
+  fxaa_capture.setCameraPosition(fxaa_eye, fxaa_center, fxaa_up);
 
   for (uint i = 0; i < eyes.size(); ++i) {
     capture.setCameraPosition(eyes[i], centers[i], ups[i]);
@@ -159,15 +165,29 @@ BOOST_AUTO_TEST_CASE(applyShaderNormalDepthMap_TestCase) {
 // BOOST_AUTO_TEST_CASE(TempTest){
 //
 //
-//   std::string image_path = "/home/trocoli/Pictures/baiana_system_face.jpg";
+//   std::string image_path = "/home/trocoli/Pictures/baiana_system.jpg";
 //   osg::ref_ptr<osg::Image> osg_image = osgDB::readImageFile(image_path);
 //
 //   FXAA fxaa;
-//   fxaa.addImageToFxaa(osg_image, 1920, 1080);
+//   fxaa.addImageToFxaa(osg_image, 1366, 768);
 //
 //   osgViewer::Viewer bumpViewer;
-//   bumpViewer.setSceneData(createSquare());
+//   // bumpViewer.setSceneData(createSquare());
 //   bumpViewer.setSceneData(fxaa.getFxaaShaderNode());
 //   bumpViewer.setCameraManipulator(new osgGA::TrackballManipulator());
-//   bumpViewer.run();
+//
+//   //bumpViewer.run();
+//
+//   osg::Vec3d eye, center, up;
+//
+//   while(!bumpViewer.done()){
+//     bumpViewer.getCamera()->getViewMatrixAsLookAt(eye, center, up);
+//     std::cout<<" eye "<<
+//       eye.x() <<","<< eye.y()<<","<< eye.z()<<std::endl;
+//     std::cout<<" center "<<
+//       center.x() <<","<< center.y()<<","<< center.z()<<std::endl;
+//     std::cout<<" up "<<
+//       up.x() <<","<< up.y()<<","<< up.z()<<std::endl;
+//     bumpViewer.frame();
+//   }
 // }

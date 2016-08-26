@@ -25,8 +25,8 @@ void texcoords(vec2 fragCoord, vec2 resolution,
 
 
 void main(){
-
-    vec2 temp_pos = vec2(position.x, (position.y - 0.5) * 2);
+    vec2 temp_pos = (gl_ModelViewMatrix * gl_Vertex).xy;
+    //vec2 temp_pos = vec2(position.x, (position.y - 0.5) * 2);
     gl_Position = vec4(temp_pos, 0.0, 1.0);
 
     vUv = (temp_pos + 1.0) * 0.5;

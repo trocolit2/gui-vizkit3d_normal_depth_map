@@ -25,6 +25,11 @@ public:
   void setFxaaReduceMin( float fxaa_reduce_min);
 
   void setFinalImageResolution(float width, float height);
+  void getCameraPosition(osg::Vec3d& eye, osg::Vec3d& center, osg::Vec3d& up){
+    eye.set(0,-5.62012,0);
+    center.set(0,-4.62012,0);
+    up.set(0,0,1);
+  }
 
   void addImageToFxaa( osg::ref_ptr<osg::Image> image, float final_width,
                        float final_height);
