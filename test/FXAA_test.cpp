@@ -19,6 +19,59 @@
 
 using namespace vizkit3d_normal_depth_map;
 
+// osg::Image *cvImage2OsgImage(cv::Mat){
+//
+// }
+
+
+cv::Mat3f plotSonarTest( cv::Mat3f image, double maxRange,
+                    double maxAngleX, cv::Mat1f cv_depth) {
+
+  cv::Mat3b imagePlotMap = cv::Mat3b::zeros(1000, 1000);
+  cv::Mat1b imagePlot = cv::Mat1b::zeros(1000, 1000);
+  cv::Point2f centerImage(image.cols / 2, image.rows / 2);
+  cv::Point2f centerPlot(imagePlot.cols / 2, 0);
+  double factor = 1000/maxRange;
+  double pointSize = factor / 3;
+  cv::Point2f halfSize(pointSize / 2, pointSize / 2);
+
+  double slope = 2 * maxAngleX * (1.0 / (image.cols - 1));
+  double constant = - maxAngleX;
+
+  for (int j = 0; j < image.rows; ++j)
+    for (int i = 0; i < image.cols; ++i) {
+      // double distance = image[j][i][1] * maxRange;
+      double distance = cv_depth[j][i] * maxRange;
+      double alpha = slope * i + constant;
+
+      cv::Point2f tempPoint(distance * sin(alpha), distance * cos(alpha));
+      tempPoint = tempPoint * factor;
+      tempPoint += centerPlot;
+      // cv::circle(imagePlot, tempPoint, pointSize, cv::Scalar(255 *
+      //  image[j][i][0]), -1);
+      // cv::rectangle(imagePlot, tempPoint + halfSize, tempPoint
+      //  - halfSize, cv::Scalar(255 * image[j][i][0]), -1);
+      imagePlot[(uint) tempPoint.y][(uint) tempPoint.x] = 255 * image[j][i][0];
+    }
+
+  cv::Mat plotProcess;
+  cv::applyColorMap(imagePlot, plotProcess, cv::COLORMAP_HOT);
+  cv::applyColorMap(imagePlot, imagePlotMap, cv::COLORMAP_HOT);
+
+  cv::line(imagePlotMap, centerPlot,
+           cv::Point2f(maxRange * sin(maxAngleX) * factor,
+                       maxRange * cos(maxAngleX) * factor) +  centerPlot,
+           cv::Scalar(255), 1, CV_AA);
+
+  cv::line(imagePlotMap, centerPlot,
+           cv::Point2f(maxRange * sin(-maxAngleX) * factor,
+                       maxRange * cos(maxAngleX) * factor) + centerPlot,
+           cv::Scalar(255), 1, CV_AA);
+
+  return imagePlotMap;
+}
+
+
 osg::ref_ptr<osg::Group> createSquare(float textureCoordMax = 1.0f) {
     // set up the Geometry.
     osg::Geometry* geom = new osg::Geometry;
@@ -106,13 +159,19 @@ void viewPointsFromScene(std::vector<osg::Vec3d> *eyes,
 // Good example to follow
 BOOST_AUTO_TEST_CASE(applyShaderNormalDepthMap_TestCase) {
 
+  std::vector<cv::Scalar> gt_scalar;
+  gt_scalar.push_back(cv::Scalar(1123.89, 198.498, 485.374, 0));
+  gt_scalar.push_back(cv::Scalar(1243.45, 263.631, 342.008, 0));
+  gt_scalar.push_back(cv::Scalar(1081.27, 170.659, 344.832, 0));
+  gt_scalar.push_back(cv::Scalar(1120.92, 71.1569, 71.1569, 0));
+
   std::vector<osg::Vec3d> eyes, centers, ups;
 
   float maxRange = 50;
   float maxAngleX = M_PI * 1.0 / 6; // 30 degrees
   float maxAngleY = M_PI * 1.0 / 6; // 30 degrees
 
-  uint height = 1300/2;
+  uint height = 2000;
   NormalDepthMap normalDepthMap(maxRange, maxAngleX * 0.5, maxAngleY * 0.5);
   ImageViewerCaptureTool capture(maxAngleY, maxAngleX, height);
 
@@ -129,7 +188,7 @@ BOOST_AUTO_TEST_CASE(applyShaderNormalDepthMap_TestCase) {
   osg::Vec3d fxaa_eye, fxaa_center, fxaa_up;
   fxaa.getCameraPosition(fxaa_eye, fxaa_center, fxaa_up);
 
-  ImageViewerCaptureTool fxaa_capture(maxAngleY, maxAngleX, height);
+  ImageViewerCaptureTool fxaa_capture(1000, 1000);
   fxaa_capture.setCameraPosition(fxaa_eye, fxaa_center, fxaa_up);
 
   for (uint i = 0; i < eyes.size(); ++i) {
@@ -146,18 +205,49 @@ BOOST_AUTO_TEST_CASE(applyShaderNormalDepthMap_TestCase) {
     cv::cvtColor(cv_image, cv_image, cv::COLOR_RGB2BGR, CV_32FC3);
     cv::flip(cv_image, cv_image, 0);
 
-    fxaa.addImageToFxaa(osgImage, osgImage->t(), osgImage->s());
-    osgImage = fxaa_capture.grabImage(fxaa.getFxaaShaderNode());
+    // get depth buffer
+    osg::ref_ptr<osg::Image> osg_depth =  capture.getDepthBuffer();
+    cv::Mat1f cv_depth(osg_depth->t(), osg_depth->s());
+    cv_depth.data = osg_depth->data();
+    cv_depth = cv_depth.clone();
+    cv::flip(cv_depth, cv_depth, 0);
+    cv_depth = cv_depth.mul( cv::Mat1f(cv_depth < 1)/255);
 
-    cv::Mat3f cv_img_fxaa(osgImage->t(), osgImage->s());
-    cv_img_fxaa.data = osgImage->data();
-    cv_img_fxaa = cv_img_fxaa.clone();
-    cv::cvtColor(cv_img_fxaa, cv_img_fxaa, cv::COLOR_RGB2BGR, CV_32FC3);
-    // cv::flip(cv_image, cv_image, 0);
+    cv::Mat3b image_plot = plotSonarTest( cv_image, maxRange,
+                                          maxAngleX/2.0, cv_depth);
 
-    cv::imshow("ORIGINAL IMAGE ",cv_image);
-    cv::imshow("FXAA IMAGE",cv_img_fxaa);
-    cv::waitKey();
+    // cv::imshow("image Plot ORIGINAL", image_plot);
+
+
+    osg::ref_ptr<osg::Image> osg_plot = new osg::Image;
+    osg_plot->allocateImage(image_plot.cols, image_plot.rows, 3,
+                            GL_BGR, GL_BYTE);
+
+    osg_plot->setImage(image_plot.cols, image_plot.rows, 3, GL_RGB, GL_RGB,
+                       GL_UNSIGNED_BYTE, image_plot.data,
+                       osg::Image::NO_DELETE,1);
+
+    fxaa.addImageToFxaa(osg_plot, osg_plot->t(), osg_plot->s());
+    osg_plot = fxaa_capture.grabImage(fxaa.getFxaaShaderNode());
+
+    cv::Mat3f cv_img_plot(osg_plot->t(), osg_plot->s());
+    cv_img_plot.data = osg_plot->data();
+    cv::flip(cv_img_plot, cv_img_plot, 0);
+    // cv::imshow("image Plot FXAA", cv_img_plot);
+
+    cv::Mat3f temp_plot;
+    image_plot.convertTo(temp_plot, CV_32FC3, 1.0/255);
+
+    cv::absdiff(temp_plot, cv_img_plot, temp_plot);
+    // cv::imshow("image Plot DIFFER",temp_plot);
+
+    // cv::waitKey();
+    cv::Scalar scalar_sum;
+    scalar_sum = cv::sum(temp_plot);
+    // std::cout<<" OUT "<< scalar_sum << std::endl;
+    for (int j=0; j < 4; j++) {
+      BOOST_CHECK_CLOSE(scalar_sum[j], gt_scalar[i][j], 1.0);
+    }
   }
 
 }

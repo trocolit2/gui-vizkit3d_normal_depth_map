@@ -11,6 +11,8 @@ in vec2 v_rgbSE;
 in vec2 v_rgbM;
 in vec2 vUv;
 
+
+// parameters
 float FXAA_REDUCE_MUL = 1.0/ 8.0;
 float FXAA_REDUCE_MIN = 1.0 / 128.0;
 float FXAA_SPAN_MAX = 8.0;
@@ -74,5 +76,4 @@ void main() {
   gl_FragColor = fxaa(original_image, fragCoord, image_resolution, v_rgbNW,
                       v_rgbNE, v_rgbSW, v_rgbSE, v_rgbM);
 
-  //gl_FragColor = vec4(texture2D(original_image, vUv).xyz,1.0);
 }
