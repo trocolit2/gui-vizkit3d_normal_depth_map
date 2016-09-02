@@ -66,7 +66,7 @@ osg::ref_ptr<osg::Image> ImageViewerCaptureTool::grabImage(
 
     _viewer->setSceneData(node);
     _viewer->frame();
-    return _capture->captureImage();;
+    return _capture->captureImage();
 }
 
 osg::ref_ptr<osg::Image> ImageViewerCaptureTool::getDepthBuffer() {
@@ -97,7 +97,7 @@ void ImageViewerCaptureTool::setBackgroundColor(osg::Vec4d color) {
 ////WindowCaptureScreen METHODS
 ////////////////////////////////
 
-WindowCaptureScreen::WindowCaptureScreen(osg::ref_ptr<osg::GraphicsContext> gc) {
+WindowCaptureScreen::WindowCaptureScreen(osg::ref_ptr<osg::GraphicsContext> gc){
 
     _mutex = new OpenThreads::Mutex();
     _condition = new OpenThreads::Condition();
@@ -118,7 +118,8 @@ WindowCaptureScreen::WindowCaptureScreen(osg::ref_ptr<osg::GraphicsContext> gc) 
 
         // allocates the image memory space
         _image->allocateImage(width, height, 1, pixelFormat, GL_FLOAT);
-        _depth_buffer->allocateImage(width, height, 1,  GL_DEPTH_COMPONENT, GL_FLOAT);
+        _depth_buffer->allocateImage( width, height, 1,
+                                      GL_DEPTH_COMPONENT, GL_FLOAT);
     }
 }
 
